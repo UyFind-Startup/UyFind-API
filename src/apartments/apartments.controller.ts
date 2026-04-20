@@ -1,14 +1,8 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ApartmentsService } from './apartments.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
+import { FilterApartmentDto } from './dto/filter-apartment.dto';
 
 @ApiTags('apartments')
 @Controller('apartments')
@@ -24,20 +18,36 @@ export class ApartmentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all apartments' })
+  @ApiOperation({ summary: 'Get all apartments with optional filtering' })
   @ApiQuery({
     name: 'projectId',
     required: false,
     description: 'Filter by project ID',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    description: 'Minimum apartment price',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    description: 'Maximum apartment price',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'rooms',
+    required: false,
+    description: 'Number of rooms in apartment',
+    type: Number,
   })
   @ApiResponse({
     status: 200,
     description: 'List of all apartments with project and leads',
   })
-  findAll(
-    @Query('projectId', new ParseIntPipe({ optional: true }))
-    projectId?: number,
-  ) {
-    return this.apartmentsService.findAll(projectId);
+  findAll(@Query() filters: FilterApartmentDto) {
+    return this.apartmentsService.findAll(filters);
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { FilterProjectDto } from './dto/filter-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -16,11 +17,19 @@ export class ProjectsService {
     });
   }
 
-  async findAll() {
+  async findAll(filters?: FilterProjectDto) {
+    const where: any = {};
+
+    if (filters?.location) {
+      where.location = { contains: filters.location, mode: 'insensitive' };
+    }
+
     return this.prisma.project.findMany({
+      where,
       include: {
         developer: true,
         apartments: {
+          where: this.buildApartmentFilter(filters),
           include: {
             leads: true,
           },
@@ -47,5 +56,27 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  private buildApartmentFilter(filters?: FilterProjectDto) {
+    const where: any = {};
+
+    if (filters?.minPrice) {
+      where.price = { gte: filters.minPrice };
+    }
+
+    if (filters?.maxPrice) {
+      if (where.price) {
+        where.price.lte = filters.maxPrice;
+      } else {
+        where.price = { lte: filters.maxPrice };
+      }
+    }
+
+    if (filters?.minRooms) {
+      where.rooms = { gte: filters.minRooms };
+    }
+
+    return Object.keys(where).length > 0 ? where : undefined;
   }
 }

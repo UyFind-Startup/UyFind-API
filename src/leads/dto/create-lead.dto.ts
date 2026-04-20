@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsString, IsInt, Matches } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsInt,
+  Matches,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateLeadDto {
@@ -29,4 +35,13 @@ export class CreateLeadDto {
   @IsNotEmpty()
   @IsInt()
   apartmentId: number;
+
+  @ApiProperty({
+    description: 'The ID of the project the lead is interested in (optional)',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsInt()
+  projectId?: number;
 }

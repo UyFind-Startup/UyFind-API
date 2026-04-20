@@ -1,4 +1,10 @@
-import { IsNotEmpty, IsInt, IsNumber } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateApartmentDto {
@@ -41,4 +47,13 @@ export class CreateApartmentDto {
   @IsNotEmpty()
   @IsInt()
   floor: number;
+
+  @ApiProperty({
+    description: 'Image URL for the apartment (optional)',
+    example: 'https://example.com/apartment-image.jpg',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }

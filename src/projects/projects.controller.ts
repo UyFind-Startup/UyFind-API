@@ -5,10 +5,18 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { FilterProjectDto } from './dto/filter-project.dto';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -24,13 +32,37 @@ export class ProjectsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all projects' })
+  @ApiOperation({ summary: 'Get all projects with optional filtering' })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    description: 'Minimum apartment price in project',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    description: 'Maximum apartment price in project',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'minRooms',
+    required: false,
+    description: 'Minimum number of rooms in apartments',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'location',
+    required: false,
+    description: 'Project location/city',
+    type: String,
+  })
   @ApiResponse({
     status: 200,
     description: 'List of all projects with developer and apartments',
   })
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@Query() filters: FilterProjectDto) {
+    return this.projectsService.findAll(filters);
   }
 
   @Get(':id')

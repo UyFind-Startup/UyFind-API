@@ -21,40 +21,59 @@ model Developer {
 }
 
 model Project {
-    id           Int    @id @default(autoincrement())
+    id           Int     @id @default(autoincrement())
     name         String
     location     String
     deliveryDate String
+    imageUrl     String  @default("https://via.placeholder.com/800x600?text=Project+Image")
+    videoUrl     String?
     developerId  Int
 
     developer  Developer   @relation(fields: [developerId], references: [id], onDelete: Cascade)
     apartments Apartment[]
+    leads      Lead[]
 
+    @@index([developerId])
     @@map("projects")
 }
 
 model Apartment {
-    id        Int   @id @default(autoincrement())
+    id        Int     @id @default(autoincrement())
     projectId Int
     price     Float
     rooms     Int
     area      Float
     floor     Int
+    imageUrl  String?
 
     project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
     leads   Lead[]
 
+    @@index([projectId])
     @@map("apartments")
 }
 
+enum LeadStatus {
+    NEW
+    CONTACTED
+    CLOSED
+}
+
 model Lead {
-    id          Int      @id @default(autoincrement())
+    id          Int        @id @default(autoincrement())
     name        String
     phone       String
     apartmentId Int
-    createdAt   DateTime @default(now())
+    projectId   Int?
+    status      LeadStatus @default(NEW)
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @default(now()) @updatedAt
 
     apartment Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+    project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+    @@index([projectId])
+    @@index([status])
+    @@index([apartmentId])
     @@map("leads")
 }
