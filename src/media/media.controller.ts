@@ -22,7 +22,7 @@ export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @Post('image')
-  @ApiOperation({ summary: 'Upload image to Cloudinary and return URL' })
+  @ApiOperation({ summary: 'Upload image to Supabase Storage and return URL' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -42,7 +42,11 @@ export class MediaController {
     schema: {
       type: 'object',
       properties: {
-        url: { type: 'string', example: 'https://res.cloudinary.com/...jpg' },
+        url: {
+          type: 'string',
+          example:
+            'https://YOUR_PROJECT.supabase.co/storage/v1/object/public/YOUR_BUCKET/uploads/example.jpg',
+        },
       },
     },
   })

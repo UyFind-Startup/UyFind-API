@@ -27,7 +27,7 @@ export class AnalyticsService {
       .filter((item) => item.projectId !== null)
       .map((item) => ({
         projectId: item.projectId,
-      leadsCount: item._count.id,
+        leadsCount: item._count.id,
       }));
   }
 }

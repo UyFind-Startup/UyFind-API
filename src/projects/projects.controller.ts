@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   ParseIntPipe,
@@ -17,6 +18,7 @@ import {
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -87,5 +89,17 @@ export class ProjectsController {
   @ApiResponse({ status: 404, description: 'Project not found' })
   findFull(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.findFullById(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update project by ID' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiResponse({ status: 200, description: 'Project updated successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(id, updateProjectDto);
   }
 }

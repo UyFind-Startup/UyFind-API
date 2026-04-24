@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 @Injectable()
 export class ProjectsService {
@@ -68,6 +69,19 @@ export class ProjectsService {
 
   async findFullById(id: number) {
     return this.findOne(id);
+  }
+
+  async update(id: number, updateProjectDto: UpdateProjectDto) {
+    await this.findOne(id);
+
+    return this.prisma.project.update({
+      where: { id },
+      data: updateProjectDto,
+      include: {
+        developer: true,
+        apartments: true,
+      },
+    });
   }
 
   private buildApartmentFilter(
