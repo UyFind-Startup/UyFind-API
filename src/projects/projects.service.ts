@@ -10,11 +10,24 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createProjectDto: CreateProjectDto) {
+    const { imageUrls, ...projectData } = createProjectDto;
     return this.prisma.project.create({
-      data: createProjectDto,
+      data: {
+        ...projectData,
+        media: imageUrls?.length
+          ? {
+              create: imageUrls.map((imageUrl, index) => ({
+                imageUrl,
+                sortOrder: index,
+              })),
+            }
+          : undefined,
+      },
       include: {
         developer: true,
         apartments: true,
+        media: true,
+        reviews: true,
       },
     });
   }
@@ -33,10 +46,17 @@ export class ProjectsService {
       };
     }
 
-    return this.prisma.project.findMany({
+    const projects = await this.prisma.project.findMany({
       where,
       include: {
         developer: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        reviews: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
         apartments: {
           where: apartmentFilter,
           include: {
@@ -44,6 +64,36 @@ export class ProjectsService {
           },
         },
       },
+    });
+
+    const filteredByPerM2 = projects.filter((project) => {
+      if (!filters?.pricePerM2Min && !filters?.pricePerM2Max) return true;
+      return project.apartments.some((apartment) => {
+        if (!apartment.area) return false;
+        const perM2 = apartment.price / apartment.area;
+        if (filters.pricePerM2Min && perM2 < filters.pricePerM2Min)
+          return false;
+        if (filters.pricePerM2Max && perM2 > filters.pricePerM2Max)
+          return false;
+        return true;
+      });
+    });
+
+    return filteredByPerM2.map((project) => {
+      const reviewsCount = project.reviews.length;
+      const avgRating = reviewsCount
+        ? Number(
+            (
+              project.reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviewsCount
+            ).toFixed(1),
+          )
+        : null;
+      return {
+        ...project,
+        reviewsCount,
+        avgRating,
+      };
     });
   }
 
@@ -57,6 +107,12 @@ export class ProjectsService {
             leads: true,
           },
         },
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
+        reviews: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -64,7 +120,21 @@ export class ProjectsService {
       throw new NotFoundException(`Project with ID ${id} not found`);
     }
 
-    return project;
+    const reviewsCount = project.reviews.length;
+    const avgRating = reviewsCount
+      ? Number(
+          (
+            project.reviews.reduce((sum, review) => sum + review.rating, 0) /
+            reviewsCount
+          ).toFixed(1),
+        )
+      : null;
+
+    return {
+      ...project,
+      reviewsCount,
+      avgRating,
+    };
   }
 
   async findFullById(id: number) {
@@ -73,13 +143,38 @@ export class ProjectsService {
 
   async update(id: number, updateProjectDto: UpdateProjectDto) {
     await this.findOne(id);
+    const { imageUrls, ...projectData } = updateProjectDto;
 
     return this.prisma.project.update({
       where: { id },
-      data: updateProjectDto,
+      data: {
+        ...projectData,
+        media: imageUrls
+          ? {
+              deleteMany: {},
+              create: imageUrls.map((imageUrl, index) => ({
+                imageUrl,
+                sortOrder: index,
+              })),
+            }
+          : undefined,
+      },
       include: {
         developer: true,
         apartments: true,
+        media: true,
+        reviews: true,
+      },
+    });
+  }
+
+  async addReview(projectId: number, rating: number, comment?: string) {
+    await this.findOne(projectId);
+    return this.prisma.projectReview.create({
+      data: {
+        projectId,
+        rating,
+        comment,
       },
     });
   }

@@ -24,6 +24,26 @@ export class FilterProjectDto {
   maxPrice?: number;
 
   @ApiProperty({
+    description: 'Minimum apartment price per m² in project',
+    example: 800,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  pricePerM2Min?: number;
+
+  @ApiProperty({
+    description: 'Maximum apartment price per m² in project',
+    example: 2000,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  pricePerM2Max?: number;
+
+  @ApiProperty({
     description: 'Number of rooms in apartments',
     example: 3,
     required: false,

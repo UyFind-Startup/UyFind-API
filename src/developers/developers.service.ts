@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateDeveloperDto } from './dto/create-developer.dto';
+import { UpdateDeveloperDto } from './dto/update-developer.dto';
 
 @Injectable()
 export class DevelopersService {
@@ -14,6 +15,16 @@ export class DevelopersService {
 
   async findAll() {
     return this.prisma.developer.findMany({
+      include: {
+        projects: true,
+      },
+    });
+  }
+
+  async update(id: number, updateDeveloperDto: UpdateDeveloperDto) {
+    return this.prisma.developer.update({
+      where: { id },
+      data: updateDeveloperDto,
       include: {
         projects: true,
       },

@@ -7,6 +7,8 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +21,7 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -26,6 +29,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
+  @UseGuards(AdminApiKeyGuard)
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
@@ -58,6 +62,18 @@ export class ProjectsController {
     required: false,
     description: 'Project location/city',
     type: String,
+  })
+  @ApiQuery({
+    name: 'pricePerM2Min',
+    required: false,
+    description: 'Minimum apartment price per m² in project',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'pricePerM2Max',
+    required: false,
+    description: 'Maximum apartment price per m² in project',
+    type: Number,
   })
   @ApiResponse({
     status: 200,
@@ -92,6 +108,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  @UseGuards(AdminApiKeyGuard)
   @ApiOperation({ summary: 'Update project by ID' })
   @ApiParam({ name: 'id', description: 'Project ID', type: Number })
   @ApiResponse({ status: 200, description: 'Project updated successfully' })
@@ -101,5 +118,21 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
     return this.projectsService.update(id, updateProjectDto);
+  }
+
+  @Post(':id/reviews')
+  @UseGuards(AdminApiKeyGuard)
+  @ApiOperation({ summary: 'Create project review' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  @ApiResponse({ status: 201, description: 'Review created successfully' })
+  addReview(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    if (!body?.rating || body.rating < 1 || body.rating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
+    return this.projectsService.addReview(id, body.rating, body.comment);
   }
 }

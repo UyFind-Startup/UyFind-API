@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { FilterApartmentDto } from './dto/filter-apartment.dto';
+import { UpdateApartmentDto } from './dto/update-apartment.dto';
 
 @Injectable()
 export class ApartmentsService {
@@ -38,6 +39,17 @@ export class ApartmentsService {
 
     return this.prisma.apartment.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,
+      include: {
+        project: true,
+        leads: true,
+      },
+    });
+  }
+
+  async update(id: number, updateApartmentDto: UpdateApartmentDto) {
+    return this.prisma.apartment.update({
+      where: { id },
+      data: updateApartmentDto,
       include: {
         project: true,
         leads: true,

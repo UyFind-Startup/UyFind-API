@@ -11,9 +11,10 @@ datasource db {
 }
 
 model Developer {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
+    id         Int      @id @default(autoincrement())
+    name       String
+    qrCodeUrl  String?
+    createdAt  DateTime @default(now())
 
     projects Project[]
 
@@ -24,6 +25,12 @@ model Project {
     id           Int     @id @default(autoincrement())
     name         String
     location     String
+    district     String?
+    description  String?
+    advantages   String[]
+    mapEmbedUrl  String?
+    totalFloors  Int?
+    totalUnits   Int?
     deliveryDate String
     imageUrl     String  @default("https://via.placeholder.com/800x600?text=Project+Image")
     videoUrl     String?
@@ -32,6 +39,8 @@ model Project {
     developer  Developer   @relation(fields: [developerId], references: [id], onDelete: Cascade)
     apartments Apartment[]
     leads      Lead[]
+    media      ProjectMedia[]
+    reviews    ProjectReview[]
 
     @@index([developerId])
     @@map("projects")
@@ -69,9 +78,51 @@ model Lead {
 
     apartment Apartment? @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
     project   Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    feedback  LeadFeedback?
 
     @@index([projectId])
     @@index([status])
     @@index([apartmentId])
     @@map("leads")
+}
+
+model ProjectMedia {
+    id        Int      @id @default(autoincrement())
+    projectId Int
+    imageUrl  String
+    sortOrder Int      @default(0)
+    createdAt DateTime @default(now())
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
+    @@map("project_media")
+}
+
+model ProjectReview {
+    id        Int      @id @default(autoincrement())
+    projectId Int
+    rating    Int
+    comment   String?
+    createdAt DateTime @default(now())
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
+    @@map("project_reviews")
+}
+
+model LeadFeedback {
+    id           Int      @id @default(autoincrement())
+    leadId       Int      @unique
+    token        String   @unique
+    rating       Int?
+    comment      String?
+    submittedAt  DateTime?
+    createdAt    DateTime @default(now())
+
+    lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+    @@index([token])
+    @@map("lead_feedback")
 }

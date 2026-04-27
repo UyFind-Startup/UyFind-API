@@ -1,8 +1,20 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Query,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ApartmentsService } from './apartments.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { FilterApartmentDto } from './dto/filter-apartment.dto';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
+import { UpdateApartmentDto } from './dto/update-apartment.dto';
 
 @ApiTags('apartments')
 @Controller('apartments')
@@ -10,6 +22,7 @@ export class ApartmentsController {
   constructor(private readonly apartmentsService: ApartmentsService) {}
 
   @Post()
+  @UseGuards(AdminApiKeyGuard)
   @ApiOperation({ summary: 'Create a new apartment' })
   @ApiResponse({ status: 201, description: 'Apartment created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
@@ -49,5 +62,16 @@ export class ApartmentsController {
   })
   findAll(@Query() filters: FilterApartmentDto) {
     return this.apartmentsService.findAll(filters);
+  }
+
+  @Patch(':id')
+  @UseGuards(AdminApiKeyGuard)
+  @ApiOperation({ summary: 'Update apartment by ID' })
+  @ApiResponse({ status: 200, description: 'Apartment updated successfully' })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateApartmentDto: UpdateApartmentDto,
+  ) {
+    return this.apartmentsService.update(id, updateApartmentDto);
   }
 }
