@@ -33,6 +33,7 @@ model Project {
     description  String?
     advantages   String[]
     mapEmbedUrl  String?
+    qrCodeUrl    String?
     totalFloors  Int?
     totalUnits   Int?
     badgeVerified Boolean @default(false)

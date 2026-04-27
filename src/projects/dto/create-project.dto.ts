@@ -65,6 +65,15 @@ export class CreateProjectDto {
   mapEmbedUrl?: string;
 
   @ApiProperty({
+    description: 'Project-specific QR code URL (optional)',
+    example: 'https://example.com/project-qr.png',
+    required: false,
+  })
+  @IsOptional()
+  @IsUrl()
+  qrCodeUrl?: string;
+
+  @ApiProperty({
     description: 'Total number of floors in the project',
     example: 16,
     required: false,
