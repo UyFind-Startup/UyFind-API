@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma.service';
@@ -151,21 +155,31 @@ export class LeadsService {
     token: string,
     payload: { rating: number; comment?: string },
   ) {
-    return this.prisma.leadFeedback.update({
-      where: { token },
-      data: {
-        rating: payload.rating,
-        comment: payload.comment,
-        submittedAt: new Date(),
-      },
-      include: {
-        lead: {
-          include: {
-            project: true,
+    try {
+      return await this.prisma.leadFeedback.update({
+        where: { token },
+        data: {
+          rating: payload.rating,
+          comment: payload.comment,
+          submittedAt: new Date(),
+        },
+        include: {
+          lead: {
+            include: {
+              project: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Feedback link is invalid or expired');
+      }
+      throw error;
+    }
   }
 
   async getFeedbackSummary(developerId?: number) {
