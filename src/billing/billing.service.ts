@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import { createHmac, randomUUID } from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { ManualPaymentMethod } from './dto/create-checkout.dto';
 
 const PLAN_PRICES_USD: Record<SubscriptionPlan, number> = {
   START: 149,
@@ -25,7 +26,8 @@ export class BillingService {
   async createCheckout(
     projectId: number,
     plan: SubscriptionPlan,
-    provider: BillingProvider,
+    paymentMethod: ManualPaymentMethod = 'CARD_TRANSFER',
+    note?: string,
     developerId?: number,
   ) {
     const project = await this.prisma.project.findUnique({
@@ -45,14 +47,23 @@ export class BillingService {
 
     const externalRef = randomUUID();
     const amountUsd = PLAN_PRICES_USD[plan];
+    const cardNumber = process.env.MANUAL_PAYMENT_CARD ?? '';
+    const cardHolder = process.env.MANUAL_PAYMENT_CARD_HOLDER ?? '';
+    const cashAddress = process.env.MANUAL_PAYMENT_CASH_ADDRESS ?? '';
+
     const invoice = await this.prisma.billingInvoice.create({
       data: {
         projectId,
-        provider,
+        provider: BillingProvider.PAYME,
         amountUsd,
         externalRef,
-        checkoutUrl: `https://pay.example/checkout/${provider.toLowerCase()}/${externalRef}`,
-        metadata: { plan },
+        checkoutUrl: null,
+        metadata: {
+          plan,
+          paymentMethod,
+          note: note?.trim() || null,
+          manual: true,
+        },
       },
     });
 
@@ -60,7 +71,23 @@ export class BillingService {
       invoiceId: invoice.id,
       externalRef,
       amountUsd,
-      checkoutUrl: invoice.checkoutUrl,
+      status: invoice.status,
+      paymentMethod,
+      instructions:
+        paymentMethod === 'CARD_TRANSFER'
+          ? {
+              type: 'CARD_TRANSFER',
+              cardNumber,
+              cardHolder,
+              comment: `Укажите в комментарии к переводу: ${externalRef}`,
+            }
+          : {
+              type: 'CASH',
+              address: cashAddress,
+              comment: `Назовите менеджеру код оплаты: ${externalRef}`,
+            },
+      message:
+        'Заявка на оплату создана. После подтверждения менеджером подписка будет активирована.',
     };
   }
 

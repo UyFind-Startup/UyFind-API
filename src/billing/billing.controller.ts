@@ -14,8 +14,8 @@ export class BillingController {
 
   @Post('checkout')
   @UseGuards(DeveloperAuthGuard)
-  @ApiOperation({ summary: 'Create Payme/Click checkout invoice' })
-  @ApiResponse({ status: 201, description: 'Checkout created successfully' })
+  @ApiOperation({ summary: 'Create manual payment request for subscription' })
+  @ApiResponse({ status: 201, description: 'Manual payment request created successfully' })
   createCheckout(
     @Body() dto: CreateCheckoutDto,
     @Req() request: Request & { developerId?: number },
@@ -23,7 +23,8 @@ export class BillingController {
     return this.billingService.createCheckout(
       dto.projectId,
       dto.plan,
-      dto.provider,
+      dto.paymentMethod,
+      dto.note,
       request.developerId,
     );
   }
