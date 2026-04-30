@@ -401,7 +401,7 @@ export class BillingService {
 
   /** Admin-only: list all invoices for review */
   async adminListInvoices() {
-    return this.prisma.billingInvoice.findMany({
+    const invoices = await this.prisma.billingInvoice.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
         project: {
@@ -412,6 +412,12 @@ export class BillingService {
         },
       },
     });
+
+    return invoices.map((inv) => ({
+      ...inv,
+      amountUzs: inv.amountUsd,
+      plan: (inv.metadata as any)?.plan || 'START',
+    }));
   }
 
   /** Admin-only: list all subscriptions */
