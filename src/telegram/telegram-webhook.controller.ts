@@ -41,6 +41,8 @@ export class TelegramWebhookController {
       throw new UnauthorizedException();
     }
 
+    this.logger.log('Telegram webhook: update received');
+
     const text = body.message?.text;
     const chatId = body.message?.chat?.id;
     if (!text || chatId == null) {
@@ -53,7 +55,13 @@ export class TelegramWebhookController {
       if (payload) {
         await this.linkChat(payload, String(chatId));
       } else {
-        this.logger.debug('Webhook /start without payload (open bot without link token)');
+        await this.telegramBot.sendPlainText(
+          String(chatId),
+          [
+            'Чтобы привязать кабинет, откройте ссылку из раздела «Профиль» на сайте Oson Uy',
+            '(кнопка «Открыть в Telegram»), а не просто команду /start.',
+          ].join(' '),
+        );
       }
     }
 
@@ -70,6 +78,10 @@ export class TelegramWebhookController {
     if (!developer) {
       this.logger.warn(
         `Telegram link: no developer for token (wrong DB, expired link, or token overwritten by new link). chatId=${chatId}`,
+      );
+      await this.telegramBot.sendPlainText(
+        chatId,
+        'Ссылка устарела или недействительна. Создайте новую в кабинете: Профиль → уведомления Telegram.',
       );
       return;
     }
