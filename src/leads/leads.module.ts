@@ -5,9 +5,10 @@ import { PrismaService } from '../prisma.service';
 import { NotificationsService } from '../common/services/notifications.service';
 import { AuthModule } from '../auth/auth.module';
 import { DeveloperAuthGuard } from '../common/guards/developer-auth.guard';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, TelegramModule],
   controllers: [LeadsController],
   providers: [
     LeadsService,

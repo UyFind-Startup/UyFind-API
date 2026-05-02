@@ -43,6 +43,15 @@ export class DevelopersController {
     return this.developersService.findById(request.developerId ?? 0);
   }
 
+  @Get('me/telegram-link')
+  @UseGuards(DeveloperAuthGuard)
+  @ApiOperation({ summary: 'Deep link to link Telegram (start param)' })
+  @ApiResponse({ status: 200, description: 'deepLink and expiresAt' })
+  createTelegramInvite(@Req() request: Request & { developerId?: number }) {
+    const id = request.developerId ?? 0;
+    return this.developersService.createTelegramLink(id);
+  }
+
   @Patch(':id')
   @UseGuards(DeveloperAuthGuard)
   @ApiOperation({ summary: 'Update developer by ID (including QR code)' })

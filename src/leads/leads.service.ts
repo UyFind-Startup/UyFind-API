@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from '../common/services/notifications.service';
+import { TelegramBotService } from '../telegram/telegram-bot.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { FilterLeadDto } from './dto/filter-lead.dto';
@@ -16,6 +17,7 @@ export class LeadsService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private telegramBot: TelegramBotService,
   ) {}
 
   async create(createLeadDto: CreateLeadDto) {
@@ -24,10 +26,10 @@ export class LeadsService {
       include: {
         apartment: {
           include: {
-            project: true,
+            project: { include: { developer: true } },
           },
         },
-        project: true,
+        project: { include: { developer: true } },
       },
     });
 
@@ -35,8 +37,36 @@ export class LeadsService {
     await this.notificationsService.notifyNewLead(
       lead.name,
       lead.apartmentId,
-      lead.project?.name ?? 'Unknown project',
+      lead.project?.name ??
+        lead.apartment?.project?.name ??
+        'Unknown project',
     );
+
+    const projectName =
+      lead.project?.name ?? lead.apartment?.project?.name ?? '—';
+    const developer =
+      lead.project?.developer ?? lead.apartment?.project?.developer;
+
+    if (developer?.telegramChatId) {
+      const dashboardBase =
+        process.env.DASHBOARD_PUBLIC_URL ??
+        process.env.FRONTEND_URL ??
+        'http://localhost:3000';
+      const leadsUrl = `${dashboardBase.replace(/\/$/, '')}/dashboard/leads`;
+      const message = [
+        'Новая заявка',
+        '',
+        `Имя: ${lead.name}`,
+        `Телефон: ${lead.phone}`,
+        `Объект: ${projectName}`,
+        '',
+        `Открыть заявки и статус: ${leadsUrl}`,
+      ].join('\n');
+      await this.telegramBot.sendPlainText(
+        developer.telegramChatId,
+        message,
+      );
+    }
 
     return lead;
   }

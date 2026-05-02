@@ -16,6 +16,9 @@ model Developer {
     email      String?  @unique
     passwordHash String?
     qrCodeUrl  String?
+    telegramChatId       String?   @map("telegram_chat_id")
+    telegramLinkToken      String?   @unique @map("telegram_link_token")
+    telegramLinkExpiresAt  DateTime? @map("telegram_link_expires_at")
     createdAt  DateTime @default(now())
 
     projects Project[]

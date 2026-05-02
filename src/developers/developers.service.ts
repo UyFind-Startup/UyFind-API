@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { CreateDeveloperDto } from './dto/create-developer.dto';
 import { UpdateDeveloperDto } from './dto/update-developer.dto';
 
 @Injectable()
 export class DevelopersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async create(createDeveloperDto: CreateDeveloperDto) {
     return this.prisma.developer.create({
@@ -22,12 +27,49 @@ export class DevelopersService {
   }
 
   async findById(id: number) {
-    return this.prisma.developer.findUnique({
+    const developer = await this.prisma.developer.findUnique({
       where: { id },
       include: {
         projects: true,
       },
     });
+    if (!developer) {
+      return null;
+    }
+    const {
+      passwordHash: _p,
+      telegramLinkToken: _t,
+      telegramLinkExpiresAt: _e,
+      telegramChatId,
+      ...rest
+    } = developer;
+    return {
+      ...rest,
+      telegramLinked: Boolean(telegramChatId),
+    };
+  }
+
+  async createTelegramLink(developerId: number) {
+    const rawUsername = this.configService.get<string>('TELEGRAM_BOT_USERNAME');
+    const username = rawUsername?.replace(/^@/, '')?.trim();
+    if (!username) {
+      throw new BadRequestException(
+        'TELEGRAM_BOT_USERNAME is not configured on the server',
+      );
+    }
+    const token = randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await this.prisma.developer.update({
+      where: { id: developerId },
+      data: {
+        telegramLinkToken: token,
+        telegramLinkExpiresAt: expiresAt,
+      },
+    });
+    return {
+      deepLink: `https://t.me/${username}?start=${token}`,
+      expiresAt: expiresAt.toISOString(),
+    };
   }
 
   async update(id: number, updateDeveloperDto: UpdateDeveloperDto) {
