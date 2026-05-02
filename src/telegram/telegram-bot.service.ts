@@ -10,12 +10,14 @@ export class TelegramBotService {
     this.token = this.configService.get('TELEGRAM_BOT_TOKEN') || '';
   }
 
+  /** Пустая строка и пробелы в env считаем как «секрет не задан». */
   verifyWebhookSecret(header: string | undefined): boolean {
-    const expected = this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET');
+    const expected =
+      this.configService.get<string>('TELEGRAM_WEBHOOK_SECRET')?.trim() ?? '';
     if (!expected) {
       return true;
     }
-    return header === expected;
+    return (header ?? '').trim() === expected;
   }
 
   async sendPlainText(chatId: string, text: string): Promise<void> {
