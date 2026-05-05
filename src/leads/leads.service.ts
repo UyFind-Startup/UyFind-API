@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from '../common/services/notifications.service';
 import { TelegramBotService } from '../telegram/telegram-bot.service';
+import { ExpoPushService } from '../common/services/expo-push.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { FilterLeadDto } from './dto/filter-lead.dto';
@@ -30,6 +31,7 @@ export class LeadsService {
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
     private telegramBot: TelegramBotService,
+    private expoPush: ExpoPushService,
   ) {}
 
   async create(createLeadDto: CreateLeadDto) {
@@ -81,6 +83,21 @@ export class LeadsService {
 
     const developer =
       lead.project?.developer ?? lead.floor?.project?.developer;
+
+    if (developer?.id) {
+      const title = 'Новая заявка';
+      const body = `${lead.name} · ${projectName}`;
+      await this.expoPush.notifyDeveloperNewLead({
+        developerId: developer.id,
+        title,
+        body,
+        data: {
+          leadId: lead.id,
+          projectId: lead.projectId,
+          floorId: lead.floorId ?? null,
+        },
+      });
+    }
 
     if (developer?.telegramChatId) {
       const dashboardBase =

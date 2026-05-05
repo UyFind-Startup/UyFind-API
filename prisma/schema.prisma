@@ -30,8 +30,23 @@ model Developer {
     projects Project[]
     sessions DeveloperSession[]
     memberships ProjectMember[]
+    devices DeveloperDevice[]
 
     @@map("developers")
+}
+
+model DeveloperDevice {
+    id            Int      @id @default(autoincrement())
+    developerId   Int      @map("developer_id")
+    expoPushToken String   @unique @map("expo_push_token")
+    platform      String?
+    createdAt     DateTime @default(now()) @map("created_at")
+    updatedAt     DateTime @updatedAt @map("updated_at")
+
+    developer Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+    @@index([developerId])
+    @@map("developer_devices")
 }
 
 model Project {

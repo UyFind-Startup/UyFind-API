@@ -14,6 +14,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DevelopersService } from './developers.service';
 import { CreateDeveloperDto } from './dto/create-developer.dto';
 import { UpdateDeveloperDto } from './dto/update-developer.dto';
+import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard';
 import { DeveloperAuthGuard } from '../common/guards/developer-auth.guard';
 import { Request } from 'express';
@@ -50,6 +51,18 @@ export class DevelopersController {
   createTelegramInvite(@Req() request: Request & { developerId?: number }) {
     const id = request.developerId ?? 0;
     return this.developersService.createTelegramLink(id);
+  }
+
+  @Post('me/push-tokens')
+  @UseGuards(DeveloperAuthGuard)
+  @ApiOperation({ summary: 'Register Expo push token for current developer' })
+  @ApiResponse({ status: 201, description: 'Token registered' })
+  registerPushToken(
+    @Body() dto: RegisterPushTokenDto,
+    @Req() request: Request & { developerId?: number },
+  ) {
+    const id = request.developerId ?? 0;
+    return this.developersService.registerPushToken(id, dto);
   }
 
   @Patch(':id')

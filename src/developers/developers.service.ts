@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { CreateDeveloperDto } from './dto/create-developer.dto';
 import { UpdateDeveloperDto } from './dto/update-developer.dto';
+import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
 @Injectable()
 export class DevelopersService {
@@ -70,6 +71,22 @@ export class DevelopersService {
       deepLink: `https://t.me/${username}?start=${token}`,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  async registerPushToken(developerId: number, dto: RegisterPushTokenDto) {
+    await this.prisma.developerDevice.upsert({
+      where: { expoPushToken: dto.expoPushToken },
+      update: {
+        developerId,
+        platform: dto.platform,
+      },
+      create: {
+        developerId,
+        expoPushToken: dto.expoPushToken,
+        platform: dto.platform,
+      },
+    });
+    return { ok: true };
   }
 
   async update(id: number, updateDeveloperDto: UpdateDeveloperDto) {
