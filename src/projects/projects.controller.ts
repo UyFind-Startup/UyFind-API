@@ -23,6 +23,7 @@ import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpdateProjectProgressDto } from './dto/update-project-progress.dto';
 import { DeveloperAuthGuard } from '../common/guards/developer-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { Request } from 'express';
@@ -108,6 +109,13 @@ export class ProjectsController {
     return this.projectsService.findFullById(id);
   }
 
+  @Get(':id/progress')
+  @ApiOperation({ summary: 'Get project progress milestones and percent' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  getProgress(@Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getProgress(id);
+  }
+
   @Patch(':id')
   @UseGuards(DeveloperAuthGuard, ProjectMemberGuard)
   @ApiOperation({ summary: 'Update project by ID' })
@@ -119,6 +127,17 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
   ) {
     return this.projectsService.update(id, updateProjectDto);
+  }
+
+  @Patch(':id/progress')
+  @UseGuards(DeveloperAuthGuard, ProjectMemberGuard)
+  @ApiOperation({ summary: 'Replace project progress milestones (developer only)' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  replaceProgress(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateProjectProgressDto,
+  ) {
+    return this.projectsService.replaceProgress(id, dto.milestones);
   }
 
   @Delete(':id/reviews')

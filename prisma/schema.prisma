@@ -89,9 +89,25 @@ model Project {
     members    ProjectMember[]
     subscription ProjectSubscription?
     billingInvoices BillingInvoice[]
+    progressMilestones ProjectProgressMilestone[]
 
     @@index([developerId])
     @@map("projects")
+}
+
+model ProjectProgressMilestone {
+    id        Int      @id @default(autoincrement())
+    projectId Int      @map("project_id")
+    title     String
+    sortOrder Int      @default(0) @map("sort_order")
+    done      Boolean  @default(false)
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
+    @@map("project_progress_milestones")
 }
 
 enum ProjectMemberRole {

@@ -19,6 +19,7 @@ type ProjectWithRelations = Prisma.ProjectGetPayload<{
     };
     leads: { include: { feedback: true } };
     subscription: true;
+    progressMilestones: true;
   };
 }>;
 
@@ -73,6 +74,17 @@ export class ProjectsService {
       select: { imageUrl: true },
     },
   } satisfies Prisma.ProjectSelect;
+
+  private static readonly progressOrderBy = {
+    orderBy: { sortOrder: 'asc' as const },
+  };
+
+  private computeProgress(milestones: { done: boolean }[]) {
+    const total = milestones.length;
+    const done = milestones.filter((m) => m.done).length;
+    const percent = total ? Math.floor((done / total) * 100) : null;
+    return { total, done, percent };
+  }
 
   static toCatalogDeveloper(developer: Developer) {
     return {
@@ -129,6 +141,7 @@ export class ProjectsService {
         developer: true,
         floors: { include: ProjectsService.floorInclude },
         media: true,
+        progressMilestones: ProjectsService.progressOrderBy,
       },
     });
     await this.prisma.projectSubscription.create({
@@ -190,6 +203,7 @@ export class ProjectsService {
           },
         },
         subscription: true,
+        progressMilestones: ProjectsService.progressOrderBy,
       },
     });
 
@@ -241,6 +255,7 @@ export class ProjectsService {
         floors: { include: ProjectsService.floorInclude },
         media: true,
         subscription: true,
+        progressMilestones: ProjectsService.progressOrderBy,
       },
     });
     return {
@@ -266,6 +281,7 @@ export class ProjectsService {
           },
         },
         subscription: true,
+        progressMilestones: ProjectsService.progressOrderBy,
       },
     });
 
@@ -439,6 +455,7 @@ export class ProjectsService {
     }));
 
     const { developer, ...rest } = project;
+    const progressStats = this.computeProgress(project.progressMilestones ?? []);
 
     return {
       ...rest,
@@ -458,7 +475,72 @@ export class ProjectsService {
       reviews,
       reviewsCount,
       avgRating,
+      progress: {
+        ...progressStats,
+        milestones: (project.progressMilestones ?? []).map((m) => ({
+          id: m.id,
+          title: m.title,
+          done: m.done,
+          sortOrder: m.sortOrder,
+        })),
+      },
     };
+  }
+
+  async getProgress(projectId: number) {
+    const rows = await this.prisma.projectProgressMilestone.findMany({
+      where: { projectId },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const progressStats = this.computeProgress(rows);
+    return {
+      ...progressStats,
+      milestones: rows.map((m) => ({
+        id: m.id,
+        title: m.title,
+        done: m.done,
+        sortOrder: m.sortOrder,
+      })),
+    };
+  }
+
+  async replaceProgress(
+    projectId: number,
+    milestones: { title: string; done: boolean; sortOrder: number }[],
+  ) {
+    await this.loadProjectOrThrow(projectId);
+    const normalized = (milestones ?? [])
+      .filter((m) => Boolean(String(m?.title ?? '').trim()))
+      .map((m, idx) => ({
+        title: String(m.title).trim(),
+        done: Boolean(m.done),
+        sortOrder:
+          Number.isFinite(Number(m.sortOrder)) && Number(m.sortOrder) >= 0
+            ? Number(m.sortOrder)
+            : idx,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((m, idx) => ({ ...m, sortOrder: idx }));
+
+    await this.prisma.$transaction([
+      this.prisma.projectProgressMilestone.deleteMany({
+        where: { projectId },
+      }),
+      ...(normalized.length
+        ? [
+            this.prisma.projectProgressMilestone.createMany({
+              data: normalized.map((m) => ({
+                projectId,
+                title: m.title,
+                done: m.done,
+                sortOrder: m.sortOrder,
+              })),
+            }),
+          ]
+        : []),
+    ]);
+
+    return this.getProgress(projectId);
   }
 
   private ensureImageQuota(

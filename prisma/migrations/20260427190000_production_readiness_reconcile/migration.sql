@@ -1,17 +1,37 @@
 -- CreateEnum
-CREATE TYPE "ProjectMemberRole" AS ENUM ('OWNER', 'MANAGER');
+DO $$ BEGIN
+  CREATE TYPE "ProjectMemberRole" AS ENUM ('OWNER', 'MANAGER');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionPlan" AS ENUM ('START', 'PRO', 'PREMIUM', 'ULTIMATE');
+DO $$ BEGIN
+  CREATE TYPE "SubscriptionPlan" AS ENUM ('START', 'PRO', 'PREMIUM', 'ULTIMATE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED');
+DO $$ BEGIN
+  CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "BillingProvider" AS ENUM ('PAYME', 'CLICK');
+DO $$ BEGIN
+  CREATE TYPE "BillingProvider" AS ENUM ('PAYME', 'CLICK');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateEnum
-CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED');
+DO $$ BEGIN
+  CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- CreateTable
 CREATE TABLE "developers" (
