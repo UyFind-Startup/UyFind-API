@@ -101,6 +101,7 @@ model ProjectProgressMilestone {
     title     String
     sortOrder Int      @default(0) @map("sort_order")
     done      Boolean  @default(false)
+    photoUrls String[] @default([]) @map("photo_urls")
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 

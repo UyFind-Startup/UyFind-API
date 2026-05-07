@@ -1,6 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class ProjectProgressMilestoneDto {
   @ApiProperty({ example: 'Котлован готов' })
@@ -11,6 +19,15 @@ export class ProjectProgressMilestoneDto {
   @ApiProperty({ example: false })
   @IsBoolean()
   done: boolean;
+
+  @ApiProperty({
+    example: ['https://.../1.jpg', 'https://.../2.jpg'],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  photoUrls?: string[];
 
   @ApiProperty({ example: 0, description: 'Sort order (0-based)' })
   @Type(() => Number)

@@ -482,6 +482,7 @@ export class ProjectsService {
           title: m.title,
           done: m.done,
           sortOrder: m.sortOrder,
+          photoUrls: (m as any).photoUrls ?? [],
         })),
       },
     };
@@ -500,13 +501,19 @@ export class ProjectsService {
         title: m.title,
         done: m.done,
         sortOrder: m.sortOrder,
+        photoUrls: (m as any).photoUrls ?? [],
       })),
     };
   }
 
   async replaceProgress(
     projectId: number,
-    milestones: { title: string; done: boolean; sortOrder: number }[],
+    milestones: {
+      title: string;
+      done: boolean;
+      sortOrder: number;
+      photoUrls?: string[];
+    }[],
   ) {
     await this.loadProjectOrThrow(projectId);
     const normalized = (milestones ?? [])
@@ -514,6 +521,9 @@ export class ProjectsService {
       .map((m, idx) => ({
         title: String(m.title).trim(),
         done: Boolean(m.done),
+        photoUrls: Array.isArray(m.photoUrls)
+          ? m.photoUrls.map((u) => String(u).trim()).filter(Boolean).slice(0, 12)
+          : [],
         sortOrder:
           Number.isFinite(Number(m.sortOrder)) && Number(m.sortOrder) >= 0
             ? Number(m.sortOrder)
@@ -534,6 +544,7 @@ export class ProjectsService {
                 title: m.title,
                 done: m.done,
                 sortOrder: m.sortOrder,
+                photoUrls: m.photoUrls,
               })),
             }),
           ]
