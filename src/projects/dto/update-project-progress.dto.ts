@@ -11,6 +11,12 @@ import {
 } from 'class-validator';
 
 export class ProjectProgressMilestoneDto {
+  @ApiProperty({ example: 123, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id?: number;
+
   @ApiProperty({ example: 'Котлован готов' })
   @IsNotEmpty()
   @IsString()
