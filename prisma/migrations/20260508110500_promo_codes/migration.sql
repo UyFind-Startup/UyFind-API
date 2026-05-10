@@ -41,20 +41,32 @@ CREATE INDEX IF NOT EXISTS "promo_redemptions_promo_code_id_idx" ON "promo_redem
 CREATE INDEX IF NOT EXISTS "promo_redemptions_developer_id_idx" ON "promo_redemptions"("developer_id");
 CREATE INDEX IF NOT EXISTS "promo_redemptions_project_id_idx" ON "promo_redemptions"("project_id");
 
-ALTER TABLE "promo_redemptions"
-  ADD CONSTRAINT "promo_redemptions_promo_code_id_fkey"
-  FOREIGN KEY ("promo_code_id") REFERENCES "promo_codes"("id")
-  ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "promo_redemptions"
+    ADD CONSTRAINT "promo_redemptions_promo_code_id_fkey"
+    FOREIGN KEY ("promo_code_id") REFERENCES "promo_codes"("id")
+    ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "promo_redemptions"
-  ADD CONSTRAINT "promo_redemptions_developer_id_fkey"
-  FOREIGN KEY ("developer_id") REFERENCES "developers"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "promo_redemptions"
+    ADD CONSTRAINT "promo_redemptions_developer_id_fkey"
+    FOREIGN KEY ("developer_id") REFERENCES "developers"("id")
+    ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "promo_redemptions"
-  ADD CONSTRAINT "promo_redemptions_project_id_fkey"
-  FOREIGN KEY ("project_id") REFERENCES "projects"("id")
-  ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "promo_redemptions"
+    ADD CONSTRAINT "promo_redemptions_project_id_fkey"
+    FOREIGN KEY ("project_id") REFERENCES "projects"("id")
+    ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Allow only one redemption per (promo,developer,project) combination
 DO $$ BEGIN

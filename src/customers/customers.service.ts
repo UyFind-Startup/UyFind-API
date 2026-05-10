@@ -311,11 +311,6 @@ export class CustomersService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const bp = await this.prisma.buildingProgress.findUnique({
-      where: { projectId: customer.projectId },
-      include: { stages: { orderBy: { sortOrder: 'asc' } } },
-    });
-
     const total =
       customer.totalPriceUzs ??
       customer.apartment?.priceUzs ??
@@ -355,15 +350,6 @@ export class CustomersService {
           sortOrder: m.sortOrder,
           photoUrls: (m as { photoUrls?: string[] }).photoUrls ?? [],
         })),
-        construction: bp
-          ? {
-              percentComplete: bp.percentComplete,
-              stages: bp.stages.map((s) => ({
-                key: s.stageKey,
-                done: s.done,
-              })),
-            }
-          : null,
       },
     };
   }

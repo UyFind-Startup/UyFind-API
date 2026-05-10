@@ -368,6 +368,8 @@ enum ConstructionStageKey {
 model ApartmentUnit {
     id              Int             @id @default(autoincrement())
     projectId       Int             @map("project_id")
+    /// Код блока/корпуса для шахматки (пустая строка = один объект без деления на блоки).
+    sectionKey      String          @default("") @map("section_key")
     layoutVariantId Int?            @map("layout_variant_id")
     number          String
     floor           Int
@@ -389,7 +391,7 @@ model ApartmentUnit {
     customers     Customer[]
     leads         Lead[]
 
-    @@unique([projectId, number])
+    @@unique([projectId, sectionKey, number])
     @@index([projectId, floor])
     @@index([projectId, status])
     @@index([layoutVariantId])

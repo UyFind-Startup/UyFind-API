@@ -22,9 +22,6 @@ type ProjectWithRelations = Prisma.ProjectGetPayload<{
     leads: { include: { feedback: true } };
     subscription: true;
     progressMilestones: true;
-    buildingProgress: {
-      include: { stages: { orderBy: { sortOrder: 'asc' } } };
-    };
   };
 }>;
 
@@ -218,11 +215,6 @@ export class ProjectsService {
         },
         subscription: true,
         progressMilestones: ProjectsService.progressOrderBy,
-        buildingProgress: {
-          include: {
-            stages: { orderBy: { sortOrder: 'asc' } },
-          },
-        },
       },
     });
 
@@ -301,11 +293,6 @@ export class ProjectsService {
         },
         subscription: true,
         progressMilestones: ProjectsService.progressOrderBy,
-        buildingProgress: {
-          include: {
-            stages: { orderBy: { sortOrder: 'asc' } },
-          },
-        },
       },
     });
 
@@ -480,17 +467,6 @@ export class ProjectsService {
 
     const { developer, ...rest } = project;
     const progressStats = this.computeProgress(project.progressMilestones ?? []);
-    const bp = project.buildingProgress;
-    const construction = bp
-      ? {
-          percentComplete: bp.percentComplete,
-          stages: bp.stages.map((s) => ({
-            key: s.stageKey,
-            done: s.done,
-            sortOrder: s.sortOrder,
-          })),
-        }
-      : undefined;
 
     return {
       ...rest,
@@ -519,7 +495,6 @@ export class ProjectsService {
           sortOrder: m.sortOrder,
           photoUrls: (m as any).photoUrls ?? [],
         })),
-        ...(construction ? { construction } : {}),
       },
     };
   }
@@ -532,23 +507,6 @@ export class ProjectsService {
     });
     const progressStats = this.computeProgress(rows);
 
-    let bp = await this.prisma.buildingProgress.findUnique({
-      where: { projectId },
-      include: { stages: { orderBy: { sortOrder: 'asc' } } },
-    });
-    if (!bp) {
-      bp = await this.ensureBuildingProgress(projectId);
-    }
-
-    const construction = {
-      percentComplete: bp.percentComplete,
-      stages: bp.stages.map((s) => ({
-        key: s.stageKey,
-        done: s.done,
-        sortOrder: s.sortOrder,
-      })),
-    };
-
     return {
       ...progressStats,
       milestones: rows.map((m) => ({
@@ -558,7 +516,6 @@ export class ProjectsService {
         sortOrder: m.sortOrder,
         photoUrls: (m as any).photoUrls ?? [],
       })),
-      construction,
     };
   }
 

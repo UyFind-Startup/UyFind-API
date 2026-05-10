@@ -24,6 +24,7 @@ import { ApartmentsService } from './apartments.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { FilterApartmentDto } from './dto/filter-apartment.dto';
+import { BulkGenerateApartmentsDto } from './dto/bulk-generate-apartments.dto';
 
 @ApiTags('apartments')
 @ApiBearerAuth()
@@ -54,6 +55,23 @@ export class ApartmentsController {
     return this.apartmentsService.findOneForDeveloper(
       projectId,
       apartmentId,
+      request.developerId!,
+    );
+  }
+
+  @Post('bulk')
+  @ApiOperation({
+    summary: 'Массовое создание квартир по блокам и этажам',
+  })
+  @ApiResponse({ status: 201 })
+  bulk(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() dto: BulkGenerateApartmentsDto,
+    @Req() request: Request & { developerId?: number },
+  ) {
+    return this.apartmentsService.bulkGenerate(
+      projectId,
+      dto,
       request.developerId!,
     );
   }

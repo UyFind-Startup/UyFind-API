@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateApartmentDto } from './dto/create-apartment.dto';
 import { UpdateApartmentDto } from './dto/update-apartment.dto';
 import { FilterApartmentDto } from './dto/filter-apartment.dto';
+import { BulkGenerateApartmentsDto } from './dto/bulk-generate-apartments.dto';
 import {
   APARTMENT_UNIT_LAYOUT_INCLUDE,
   ApartmentUnitWithLayout,
@@ -40,6 +41,8 @@ export class ApartmentsService {
         : null,
     };
   }
+
+  private static readonly MAX_BULK_UNITS = 2500;
 
   async assertProjectMember(projectId: number, developerId: number) {
     const member = await this.prisma.projectMember.findFirst({
@@ -80,7 +83,12 @@ export class ApartmentsService {
     const [rows, total] = await Promise.all([
       this.prisma.apartmentUnit.findMany({
         where,
-        orderBy: [{ floor: 'desc' }, { sortOrder: 'asc' }, { number: 'asc' }],
+        orderBy: [
+          { sectionKey: 'asc' },
+          { floor: 'desc' },
+          { sortOrder: 'asc' },
+          { number: 'asc' },
+        ],
         skip,
         take: limit,
         include: APARTMENT_UNIT_LAYOUT_INCLUDE,
@@ -106,9 +114,11 @@ export class ApartmentsService {
       await this.assertLayoutVariantInProject(projectId, dto.layoutVariantId);
     }
     try {
+      const sectionKey = (dto.sectionKey ?? '').trim();
       return await this.prisma.apartmentUnit.create({
         data: {
           projectId,
+          sectionKey,
           number: dto.number.trim(),
           floor: dto.floor,
           rooms: dto.rooms,
@@ -132,7 +142,113 @@ export class ApartmentsService {
         e.code === 'P2002'
       ) {
         throw new BadRequestException(
-          'Apartment number already exists in this project',
+          'Квартира с таким номером уже есть в этом проекте (учитывается блок)',
+        );
+      }
+      throw e;
+    }
+  }
+
+  async bulkGenerate(
+    projectId: number,
+    dto: BulkGenerateApartmentsDto,
+    developerId: number,
+  ) {
+    await this.assertProjectMember(projectId, developerId);
+
+    const sections = dto.sections.map((s) => ({
+      ...s,
+      sectionKey: s.sectionKey.trim(),
+      sectionLabel: s.sectionLabel?.trim(),
+    }));
+
+    if (sections.length > 1) {
+      for (const s of sections) {
+        if (!s.sectionKey) {
+          throw new BadRequestException(
+            'При нескольких блоках у каждого укажите код блока (например A, B)',
+          );
+        }
+      }
+    }
+
+    const keys = sections.map((s) => s.sectionKey);
+    if (new Set(keys).size !== keys.length) {
+      throw new BadRequestException('Коды блоков в запросе должны быть уникальны');
+    }
+
+    for (const s of sections) {
+      if (s.layoutVariantId != null) {
+        await this.assertLayoutVariantInProject(projectId, s.layoutVariantId);
+      }
+    }
+
+    const rows: Prisma.ApartmentUnitCreateManyInput[] = [];
+    const seenNumbers = new Set<string>();
+
+    for (const sec of sections) {
+      const sk = sec.sectionKey;
+      const floorLo = Math.min(sec.floorFrom, sec.floorTo);
+      const floorHi = Math.max(sec.floorFrom, sec.floorTo);
+      if (floorLo < -5 || floorHi > 100) {
+        throw new BadRequestException('Допустимый диапазон этажей: от -5 до 100');
+      }
+
+      for (let f = floorLo; f <= floorHi; f++) {
+        for (let u = 1; u <= sec.unitsPerFloor; u++) {
+          const number = sk
+            ? `${sk}-${f}-${String(u).padStart(2, '0')}`
+            : `${f}-${String(u).padStart(2, '0')}`;
+          const dedupe = `${sk}\n${number}`;
+          if (seenNumbers.has(dedupe)) {
+            throw new BadRequestException(`Дубликат номера внутри запроса: ${number}`);
+          }
+          seenNumbers.add(dedupe);
+
+          const meta =
+            sec.sectionLabel != null && sec.sectionLabel !== ''
+              ? ({ sectionLabel: sec.sectionLabel } satisfies Record<string, string>)
+              : undefined;
+
+          rows.push({
+            projectId,
+            sectionKey: sk,
+            number,
+            floor: f,
+            rooms: sec.rooms,
+            areaSqm: sec.areaSqm,
+            priceUzs: sec.priceUzs ?? null,
+            layoutVariantId: sec.layoutVariantId ?? null,
+            sortOrder: f * 100 + u,
+            ...(meta
+              ? { crmMetadata: meta as Prisma.InputJsonValue }
+              : {}),
+          });
+        }
+      }
+    }
+
+    if (rows.length === 0) {
+      throw new BadRequestException('Не сгенерировано ни одной квартиры');
+    }
+    if (rows.length > ApartmentsService.MAX_BULK_UNITS) {
+      throw new BadRequestException(
+        `Слишком много квартир за раз (макс. ${ApartmentsService.MAX_BULK_UNITS})`,
+      );
+    }
+
+    try {
+      const result = await this.prisma.apartmentUnit.createMany({
+        data: rows,
+      });
+      return { created: result.count };
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new BadRequestException(
+          'Часть номеров уже занята в проекте. Удалите дубликаты или измените диапазоны этажей/блоков.',
         );
       }
       throw e;
@@ -159,6 +275,9 @@ export class ApartmentsService {
       const updated = await this.prisma.apartmentUnit.update({
         where: { id: apartmentId },
         data: {
+          ...(dto.sectionKey !== undefined
+            ? { sectionKey: dto.sectionKey.trim() }
+            : {}),
           ...(dto.number != null ? { number: dto.number.trim() } : {}),
           ...(dto.floor != null ? { floor: dto.floor } : {}),
           ...(dto.rooms != null ? { rooms: dto.rooms } : {}),
@@ -191,7 +310,7 @@ export class ApartmentsService {
         e.code === 'P2002'
       ) {
         throw new BadRequestException(
-          'Apartment number already exists in this project',
+          'Квартира с таким номером уже есть в этом проекте (учитывается блок)',
         );
       }
       throw e;

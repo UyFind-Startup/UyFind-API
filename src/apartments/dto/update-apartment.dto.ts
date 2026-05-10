@@ -14,6 +14,11 @@ import { ApartmentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class UpdateApartmentDto {
+  @ApiProperty({ required: false, description: 'Код блока' })
+  @IsOptional()
+  @IsString()
+  sectionKey?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
