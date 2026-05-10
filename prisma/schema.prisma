@@ -92,6 +92,10 @@ model Project {
     billingInvoices BillingInvoice[]
     progressMilestones ProjectProgressMilestone[]
     promoRedemptions PromoRedemption[]
+    apartmentUnits   ApartmentUnit[]
+    layoutVariants   LayoutVariant[]
+    customers        Customer[]
+    buildingProgress BuildingProgress?
 
     @@index([developerId])
     @@map("projects")
@@ -305,33 +309,208 @@ model ProjectFloorLayout {
     title          String?
     sortOrder      Int    @default(0) @map("sort_order")
 
-    floor ProjectFloor @relation(fields: [projectFloorId], references: [id], onDelete: Cascade)
+    floor          ProjectFloor   @relation(fields: [projectFloorId], references: [id], onDelete: Cascade)
+    layoutVariant  LayoutVariant?
 
     @@index([projectFloorId])
     @@map("project_floor_layouts")
 }
 
+/// Шаблон планировки: привязан к существующей записи project_floor_layouts (картинка плана в каталоге/3D-витрине).
+model LayoutVariant {
+    id                   Int      @id @default(autoincrement())
+    projectId            Int      @map("project_id")
+    projectFloorLayoutId Int      @unique @map("project_floor_layout_id")
+    code                 String?
+    model3dUrl           String?  @map("model_3d_url")
+    createdAt            DateTime @default(now()) @map("created_at")
+    updatedAt            DateTime @updatedAt @map("updated_at")
+
+    project             Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    projectFloorLayout  ProjectFloorLayout @relation(fields: [projectFloorLayoutId], references: [id], onDelete: Cascade)
+    apartmentUnits      ApartmentUnit[]
+
+    @@index([projectId])
+    @@map("layout_variants")
+}
+
 enum LeadStatus {
     NEW
     CONTACTED
+    MEETING
+    RESERVED
+    SOLD
+    CANCELED
+}
+
+enum ApartmentStatus {
+    AVAILABLE
+    RESERVED
+    SOLD
+}
+
+enum CustomerPaymentType {
+    DEPOSIT
+    INSTALLMENT
+    FULL
+    OTHER
+}
+
+enum ConstructionStageKey {
+    FOUNDATION
+    FRAME
+    FACADE
+    INTERIOR
+    LANDSCAPING
+}
+
+/// Конкретная квартира (шахматка / CRM). План и 3D по умолчанию берутся из связанного LayoutVariant → ProjectFloorLayout.
+model ApartmentUnit {
+    id              Int             @id @default(autoincrement())
+    projectId       Int             @map("project_id")
+    layoutVariantId Int?            @map("layout_variant_id")
+    number          String
+    floor           Int
+    rooms           Int
+    areaSqm         Float           @map("area_sqm")
+    priceUzs        Int?            @map("price_uzs")
+    status          ApartmentStatus @default(AVAILABLE)
+    /// Ручной override картинки плана (если null — imageUrl из layout variant / floor layout).
+    layoutImageUrl  String?         @map("layout_image_url")
+    /// Ручной override 3D URL (если null — model3dUrl из layout variant).
+    model3dUrl      String?         @map("model_3d_url")
+    crmMetadata     Json?           @map("crm_metadata")
+    sortOrder       Int             @default(0) @map("sort_order")
+    createdAt       DateTime        @default(now()) @map("created_at")
+    updatedAt       DateTime        @updatedAt @map("updated_at")
+
+    project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    layoutVariant LayoutVariant? @relation(fields: [layoutVariantId], references: [id], onDelete: SetNull)
+    customers     Customer[]
+    leads         Lead[]
+
+    @@unique([projectId, number])
+    @@index([projectId, floor])
+    @@index([projectId, status])
+    @@index([layoutVariantId])
+    @@map("apartments")
+}
+
+model BuildingProgress {
+    id              Int      @id @default(autoincrement())
+    projectId       Int      @unique @map("project_id")
+    percentComplete Int      @default(0) @map("percent_complete")
+    createdAt       DateTime @default(now()) @map("created_at")
+    updatedAt       DateTime @updatedAt @map("updated_at")
+
+    project Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    stages  ConstructionStage[]
+
+    @@map("building_progress")
+}
+
+model ConstructionStage {
+    id                 Int                  @id @default(autoincrement())
+    buildingProgressId Int                  @map("building_progress_id")
+    stageKey           ConstructionStageKey @map("stage_key")
+    done               Boolean              @default(false)
+    sortOrder          Int                  @default(0) @map("sort_order")
+
+    buildingProgress BuildingProgress @relation(fields: [buildingProgressId], references: [id], onDelete: Cascade)
+
+    @@unique([buildingProgressId, stageKey])
+    @@index([buildingProgressId])
+    @@map("construction_stages")
+}
+
+model Customer {
+    id            Int      @id @default(autoincrement())
+    projectId     Int      @map("project_id")
+    apartmentId   Int?     @map("apartment_id")
+    name          String
+    phone         String
+    accessCode    String   @unique @map("access_code")
+    verificationToken String? @unique @map("verification_token")
+    totalPriceUzs Int?     @map("total_price_uzs")
+    notes         String?
+    createdAt     DateTime @default(now()) @map("created_at")
+    updatedAt     DateTime @updatedAt @map("updated_at")
+
+    project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    apartment  ApartmentUnit?      @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+    payments   CustomerPayment[]
+    documents  CustomerDocument[]
+    sessions   CustomerSession[]
+
+    @@index([projectId])
+    @@index([phone])
+    @@map("customers")
+}
+
+model CustomerSession {
+    id         Int      @id @default(autoincrement())
+    customerId Int      @map("customer_id")
+    token      String   @unique
+    expiresAt  DateTime @map("expires_at")
+    createdAt  DateTime @default(now()) @map("created_at")
+
+    customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+    @@index([customerId])
+    @@index([token])
+    @@map("customer_sessions")
+}
+
+model CustomerPayment {
+    id         Int                 @id @default(autoincrement())
+    customerId Int                 @map("customer_id")
+    amountUzs  Int                 @map("amount_uzs")
+    paidAt     DateTime            @map("paid_at")
+    comment    String?
+    type       CustomerPaymentType @default(OTHER) @map("type")
+    createdAt  DateTime            @default(now()) @map("created_at")
+    updatedAt  DateTime            @updatedAt @map("updated_at")
+
+    customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+    @@index([customerId])
+    @@map("customer_payments")
+}
+
+model CustomerDocument {
+    id          Int      @id @default(autoincrement())
+    customerId  Int      @map("customer_id")
+    title       String
+    fileUrl     String   @map("file_url")
+    mimeType    String?  @map("mime_type")
+    isContract  Boolean  @default(false) @map("is_contract")
+    createdAt   DateTime @default(now()) @map("created_at")
+
+    customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+    @@index([customerId])
+    @@map("customer_documents")
 }
 
 model Lead {
-    id        Int        @id @default(autoincrement())
-    name      String
-    phone     String
-    floorId   Int?       @map("floor_id")
-    projectId Int?
-    status    LeadStatus @default(NEW)
-    createdAt DateTime   @default(now())
+    id          Int        @id @default(autoincrement())
+    name        String
+    phone       String
+    floorId     Int?       @map("floor_id")
+    projectId   Int?
+    apartmentId Int?       @map("apartment_id")
+    status      LeadStatus @default(NEW)
+    createdAt   DateTime   @default(now())
 
-    floor    ProjectFloor? @relation(fields: [floorId], references: [id], onDelete: SetNull)
-    project  Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    feedback LeadFeedback?
+    floor     ProjectFloor? @relation(fields: [floorId], references: [id], onDelete: SetNull)
+    project   Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    apartment ApartmentUnit? @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+    feedback  LeadFeedback?
 
     @@index([projectId])
     @@index([status])
     @@index([floorId])
+    @@index([apartmentId])
     @@map("leads")
 }
 

@@ -50,12 +50,27 @@ export class LeadsService {
       }
     }
 
+    if (createLeadDto.apartmentId != null) {
+      const apt = await this.prisma.apartmentUnit.findFirst({
+        where: {
+          id: createLeadDto.apartmentId,
+          projectId: createLeadDto.projectId,
+        },
+      });
+      if (!apt) {
+        throw new BadRequestException(
+          'apartmentId does not belong to the given projectId',
+        );
+      }
+    }
+
     const lead = await this.prisma.lead.create({
       data: {
         name: createLeadDto.name,
         phone: createLeadDto.phone,
         projectId: createLeadDto.projectId,
         floorId: createLeadDto.floorId,
+        apartmentId: createLeadDto.apartmentId,
       },
       include: {
         floor: {
@@ -65,6 +80,7 @@ export class LeadsService {
           },
         },
         project: { include: { developer: true } },
+        apartment: true,
       },
     });
 
@@ -155,15 +171,64 @@ export class LeadsService {
       where.project = { developerId };
     }
 
+    const search = filters?.search?.trim();
+    if (search) {
+      const digits = search.replace(/\D/g, '');
+      where.AND = [
+        ...(where.AND && Array.isArray(where.AND) ? where.AND : []),
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            ...(digits ? [{ phone: { contains: digits } }] : []),
+          ],
+        },
+      ];
+    }
+
+    const page = filters?.page;
+    const limitResolved =
+      page != null
+        ? Math.min(Math.max(filters?.limit ?? 50, 1), 200)
+        : filters?.limit != null
+          ? Math.min(Math.max(filters.limit, 1), 200)
+          : null;
+    const skip =
+      page != null && limitResolved != null
+        ? (Math.max(page, 1) - 1) * limitResolved
+        : undefined;
+    const take = limitResolved ?? undefined;
+
+    const include = {
+      floor: {
+        include: {
+          project: true,
+          areaOptions: { orderBy: { sortOrder: 'asc' as const } },
+        },
+      },
+      project: true,
+      apartment: true,
+      feedback: true,
+    };
+
+    if (page != null && limitResolved != null) {
+      const [items, total] = await Promise.all([
+        this.prisma.lead.findMany({
+          where: Object.keys(where).length > 0 ? where : undefined,
+          include,
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take,
+        }),
+        this.prisma.lead.count({
+          where: Object.keys(where).length > 0 ? where : undefined,
+        }),
+      ]);
+      return { items, total, page, limit: limitResolved };
+    }
+
     return this.prisma.lead.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,
-      include: {
-        floor: {
-          include: { project: true, areaOptions: { orderBy: { sortOrder: 'asc' } } },
-        },
-        project: true,
-        feedback: true,
-      },
+      include,
       orderBy: {
         createdAt: 'desc',
       },
@@ -178,6 +243,7 @@ export class LeadsService {
           include: { project: true, areaOptions: { orderBy: { sortOrder: 'asc' } } },
         },
         project: true,
+        apartment: true,
         feedback: true,
       },
     });
@@ -195,17 +261,51 @@ export class LeadsService {
   }
 
   async update(id: number, updateLeadDto: UpdateLeadDto, developerId?: number) {
-    if (developerId) {
-      await this.findOne(id, developerId);
+    const existing = developerId
+      ? await this.findOne(id, developerId)
+      : await this.prisma.lead.findUnique({
+          where: { id },
+          include: { project: true },
+        });
+    if (!existing) {
+      throw new NotFoundException('Lead not found');
     }
+
+    if (updateLeadDto.apartmentId !== undefined && updateLeadDto.apartmentId != null) {
+      const pid = existing.projectId;
+      if (!pid) {
+        throw new BadRequestException('Lead has no project to attach apartment');
+      }
+      const apt = await this.prisma.apartmentUnit.findFirst({
+        where: { id: updateLeadDto.apartmentId, projectId: pid },
+      });
+      if (!apt) {
+        throw new BadRequestException(
+          'apartmentId does not belong to the lead project',
+        );
+      }
+    }
+
+    const data: Prisma.LeadUpdateInput = {};
+    if (updateLeadDto.status != null) {
+      data.status = updateLeadDto.status;
+    }
+    if (updateLeadDto.apartmentId !== undefined) {
+      data.apartment =
+        updateLeadDto.apartmentId === null
+          ? { disconnect: true }
+          : { connect: { id: updateLeadDto.apartmentId } };
+    }
+
     const lead = await this.prisma.lead.update({
       where: { id },
-      data: updateLeadDto,
+      data,
       include: {
         floor: {
           include: { project: true, areaOptions: { orderBy: { sortOrder: 'asc' } } },
         },
         project: true,
+        apartment: true,
         feedback: true,
       },
     });

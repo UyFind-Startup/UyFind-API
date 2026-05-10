@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common';
-import { ProjectsService } from './projects.service';
-import { ProjectsController } from './projects.controller';
 import { PrismaService } from '../prisma.service';
 import { AuthModule } from '../auth/auth.module';
+import { ApartmentsService } from './apartments.service';
+import { ApartmentsController } from './apartments.controller';
 import { DeveloperAuthGuard } from '../common/guards/developer-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
-import { ApartmentsModule } from '../apartments/apartments.module';
 
 @Module({
-  imports: [AuthModule, ApartmentsModule],
-  controllers: [ProjectsController],
+  imports: [AuthModule],
+  controllers: [ApartmentsController],
   providers: [
-    ProjectsService,
+    ApartmentsService,
     PrismaService,
     DeveloperAuthGuard,
     ProjectMemberGuard,
   ],
+  exports: [ApartmentsService],
 })
-export class ProjectsModule {}
+export class ApartmentsModule {}

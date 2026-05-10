@@ -40,6 +40,15 @@ export class CreateLeadDto {
   floorId?: number;
 
   @ApiProperty({
+    description: 'Optional apartment (chessboard unit) the lead is interested in',
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  apartmentId?: number;
+
+  @ApiProperty({
     description: 'The ID of the project the lead is interested in',
     example: 1,
   })

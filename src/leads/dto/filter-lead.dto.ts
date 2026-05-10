@@ -1,11 +1,7 @@
-import { IsOptional, IsEnum, IsInt } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-
-enum LeadStatus {
-  NEW = 'NEW',
-  CONTACTED = 'CONTACTED',
-}
+import { LeadStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class FilterLeadDto {
   @ApiProperty({
@@ -20,10 +16,30 @@ export class FilterLeadDto {
 
   @ApiProperty({
     description: 'Filter by lead status',
-    example: 'NEW',
     required: false,
+    enum: LeadStatus,
   })
   @IsOptional()
   @IsEnum(LeadStatus)
   status?: LeadStatus;
+
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiProperty({ required: false, default: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

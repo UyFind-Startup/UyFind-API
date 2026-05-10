@@ -12,6 +12,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { LeadStatus } from '@prisma/client';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
@@ -44,18 +45,30 @@ export class LeadsController {
   @ApiQuery({
     name: 'status',
     required: false,
-    description: 'Filter by lead status (NEW, CONTACTED)',
-    enum: ['NEW', 'CONTACTED'],
+    description: 'Filter by lead status',
+    enum: LeadStatus,
   })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({
     status: 200,
-    description: 'List of leads with project and floor details',
+    description:
+      'List of leads (array) or { items, total, page, limit } when page is set',
   })
   findAll(
     @Query() filters: FilterLeadDto,
     @Req() request: Request & { developerId?: number },
   ) {
     return this.leadsService.findAll(filters, request.developerId);
+  }
+
+  @Get('feedback/summary')
+  @UseGuards(DeveloperAuthGuard)
+  @ApiOperation({ summary: 'Get lead feedback summary for dashboard' })
+  @ApiResponse({ status: 200, description: 'Feedback summary' })
+  getFeedbackSummary(@Req() request: Request & { developerId?: number }) {
+    return this.leadsService.getFeedbackSummary(request.developerId);
   }
 
   @Get(':id')
@@ -72,7 +85,7 @@ export class LeadsController {
 
   @Patch(':id')
   @UseGuards(DeveloperAuthGuard)
-  @ApiOperation({ summary: 'Update lead status' })
+  @ApiOperation({ summary: 'Update lead (status, apartment link)' })
   @ApiResponse({ status: 200, description: 'Lead updated successfully' })
   @ApiResponse({ status: 404, description: 'Lead not found' })
   update(
@@ -109,13 +122,5 @@ export class LeadsController {
     }
 
     return this.leadsService.submitFeedback(token, body);
-  }
-
-  @Get('feedback/summary')
-  @UseGuards(DeveloperAuthGuard)
-  @ApiOperation({ summary: 'Get lead feedback summary for dashboard' })
-  @ApiResponse({ status: 200, description: 'Feedback summary' })
-  getFeedbackSummary(@Req() request: Request & { developerId?: number }) {
-    return this.leadsService.getFeedbackSummary(request.developerId);
   }
 }

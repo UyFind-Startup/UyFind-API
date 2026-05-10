@@ -24,14 +24,20 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateProjectProgressDto } from './dto/update-project-progress.dto';
+import { UpdateBuildingProgressDto } from './dto/update-building-progress.dto';
 import { DeveloperAuthGuard } from '../common/guards/developer-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { Request } from 'express';
+import { ApartmentsService } from '../apartments/apartments.service';
+import { FilterApartmentDto } from '../apartments/dto/filter-apartment.dto';
 
 @ApiTags('projects')
 @Controller('projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly apartmentsService: ApartmentsService,
+  ) {}
 
   @Post()
   @UseGuards(DeveloperAuthGuard)
@@ -114,6 +120,29 @@ export class ProjectsController {
   @ApiParam({ name: 'id', description: 'Project ID', type: Number })
   getProgress(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProgress(id);
+  }
+
+  @Get(':id/apartments')
+  @ApiOperation({ summary: 'Public apartment list (chessboard / catalog)' })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  listApartmentsPublic(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: FilterApartmentDto,
+  ) {
+    return this.apartmentsService.listPublic(id, query);
+  }
+
+  @Patch(':id/building-progress')
+  @UseGuards(DeveloperAuthGuard, ProjectMemberGuard)
+  @ApiOperation({
+    summary: 'Update construction stages checklist and overall percent',
+  })
+  @ApiParam({ name: 'id', description: 'Project ID', type: Number })
+  updateBuildingProgress(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateBuildingProgressDto,
+  ) {
+    return this.projectsService.updateBuildingProgress(id, dto);
   }
 
   @Patch(':id')

@@ -13,6 +13,10 @@ import { AuthModule } from './auth/auth.module';
 import { BillingModule } from './billing/billing.module';
 import { FloorsModule } from './floors/floors.module';
 import { PromoModule } from './promo/promo.module';
+import { ApartmentsModule } from './apartments/apartments.module';
+import { LayoutVariantsModule } from './layout-variants/layout-variants.module';
+import { CustomersModule } from './customers/customers.module';
+import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { DeveloperAuthGuard } from './common/guards/developer-auth.guard';
 import { ProjectMemberGuard } from './common/guards/project-member.guard';
 
@@ -36,6 +40,10 @@ import { ProjectMemberGuard } from './common/guards/project-member.guard';
     BillingModule,
     FloorsModule,
     PromoModule,
+    ApartmentsModule,
+    LayoutVariantsModule,
+    CustomerAuthModule,
+    CustomersModule,
   ],
   providers: [
     PrismaService,

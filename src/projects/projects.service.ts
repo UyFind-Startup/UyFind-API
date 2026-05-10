@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ConstructionStageKey,
   Developer,
   Prisma,
   SubscriptionPlan,
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { FilterProjectDto } from './dto/filter-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpdateBuildingProgressDto } from './dto/update-building-progress.dto';
 
 type ProjectWithRelations = Prisma.ProjectGetPayload<{
   include: {
@@ -20,6 +22,9 @@ type ProjectWithRelations = Prisma.ProjectGetPayload<{
     leads: { include: { feedback: true } };
     subscription: true;
     progressMilestones: true;
+    buildingProgress: {
+      include: { stages: { orderBy: { sortOrder: 'asc' } } };
+    };
   };
 }>;
 
@@ -51,6 +56,14 @@ type CarouselProjectSummary = {
 @Injectable()
 export class ProjectsService {
   constructor(private prisma: PrismaService) {}
+
+  private static readonly constructionStageOrder: ConstructionStageKey[] = [
+    ConstructionStageKey.FOUNDATION,
+    ConstructionStageKey.FRAME,
+    ConstructionStageKey.FACADE,
+    ConstructionStageKey.INTERIOR,
+    ConstructionStageKey.LANDSCAPING,
+  ];
 
   private static readonly floorInclude = {
     areaOptions: { orderBy: { sortOrder: 'asc' as const } },
@@ -167,6 +180,7 @@ export class ProjectsService {
         role: 'OWNER',
       },
     });
+    await this.ensureBuildingProgress(project.id);
     return {
       ...project,
       developer: ProjectsService.toCatalogDeveloper(project.developer),
@@ -204,6 +218,11 @@ export class ProjectsService {
         },
         subscription: true,
         progressMilestones: ProjectsService.progressOrderBy,
+        buildingProgress: {
+          include: {
+            stages: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
       },
     });
 
@@ -282,6 +301,11 @@ export class ProjectsService {
         },
         subscription: true,
         progressMilestones: ProjectsService.progressOrderBy,
+        buildingProgress: {
+          include: {
+            stages: { orderBy: { sortOrder: 'asc' } },
+          },
+        },
       },
     });
 
@@ -456,6 +480,17 @@ export class ProjectsService {
 
     const { developer, ...rest } = project;
     const progressStats = this.computeProgress(project.progressMilestones ?? []);
+    const bp = project.buildingProgress;
+    const construction = bp
+      ? {
+          percentComplete: bp.percentComplete,
+          stages: bp.stages.map((s) => ({
+            key: s.stageKey,
+            done: s.done,
+            sortOrder: s.sortOrder,
+          })),
+        }
+      : undefined;
 
     return {
       ...rest,
@@ -484,16 +519,36 @@ export class ProjectsService {
           sortOrder: m.sortOrder,
           photoUrls: (m as any).photoUrls ?? [],
         })),
+        ...(construction ? { construction } : {}),
       },
     };
   }
 
   async getProgress(projectId: number) {
+    await this.loadProjectOrThrow(projectId);
     const rows = await this.prisma.projectProgressMilestone.findMany({
       where: { projectId },
       orderBy: { sortOrder: 'asc' },
     });
     const progressStats = this.computeProgress(rows);
+
+    let bp = await this.prisma.buildingProgress.findUnique({
+      where: { projectId },
+      include: { stages: { orderBy: { sortOrder: 'asc' } } },
+    });
+    if (!bp) {
+      bp = await this.ensureBuildingProgress(projectId);
+    }
+
+    const construction = {
+      percentComplete: bp.percentComplete,
+      stages: bp.stages.map((s) => ({
+        key: s.stageKey,
+        done: s.done,
+        sortOrder: s.sortOrder,
+      })),
+    };
+
     return {
       ...progressStats,
       milestones: rows.map((m) => ({
@@ -503,7 +558,63 @@ export class ProjectsService {
         sortOrder: m.sortOrder,
         photoUrls: (m as any).photoUrls ?? [],
       })),
+      construction,
     };
+  }
+
+  async ensureBuildingProgress(projectId: number) {
+    const existing = await this.prisma.buildingProgress.findUnique({
+      where: { projectId },
+      include: { stages: { orderBy: { sortOrder: 'asc' } } },
+    });
+    if (existing) return existing;
+    return this.prisma.buildingProgress.create({
+      data: {
+        projectId,
+        percentComplete: 0,
+        stages: {
+          create: ProjectsService.constructionStageOrder.map((stageKey, i) => ({
+            stageKey,
+            sortOrder: i,
+            done: false,
+          })),
+        },
+      },
+      include: { stages: { orderBy: { sortOrder: 'asc' } } },
+    });
+  }
+
+  async updateBuildingProgress(
+    projectId: number,
+    dto: UpdateBuildingProgressDto,
+  ) {
+    await this.loadProjectOrThrow(projectId);
+    const bp = await this.ensureBuildingProgress(projectId);
+
+    if (dto.stages?.length) {
+      for (const s of dto.stages) {
+        await this.prisma.constructionStage.updateMany({
+          where: {
+            buildingProgressId: bp.id,
+            stageKey: s.stageKey,
+          },
+          data: { done: s.done },
+        });
+      }
+    }
+
+    if (dto.percentComplete != null) {
+      return this.prisma.buildingProgress.update({
+        where: { id: bp.id },
+        data: { percentComplete: dto.percentComplete },
+        include: { stages: { orderBy: { sortOrder: 'asc' } } },
+      });
+    }
+
+    return this.prisma.buildingProgress.findUniqueOrThrow({
+      where: { id: bp.id },
+      include: { stages: { orderBy: { sortOrder: 'asc' } } },
+    });
   }
 
   async replaceProgress(
